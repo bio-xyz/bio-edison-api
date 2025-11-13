@@ -59,20 +59,22 @@ A FastAPI server that provides REST endpoints for interacting with the Edison Sc
 
 ## Configuration
 
-Create a `.env` file in the root directory:
-
-```bash
-# Edison client settings (REQUIRED)
-EDISON_API_KEY=your-edison-api-key-here
-```
-
 ### Getting an Edison API Key
 
 1. Visit the [Edison Scientific platform](https://platform.edisonscientific.com/profile)
 2. Sign up for an account or log in
 3. Go to your profile page
 4. Generate an API key
-5. Add it to your `.env` file
+
+### Authentication
+
+All Edison API endpoints require authentication via Bearer token in the Authorization header:
+
+```bash
+Authorization: Bearer your-edison-api-key-here
+```
+
+The API key should be passed with every request to Edison endpoints. No server-side configuration file is needed.
 
 ## API Documentation
 
@@ -113,6 +115,7 @@ Once the server is running, you can access the interactive API documentation:
 ```bash
 curl -X POST "http://localhost:8000/api/v1/edison/run/sync" \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer your-edison-api-key-here" \
   -d '{
     "name": "LITERATURE",
     "query": "Which neglected diseases had a treatment developed by artificial intelligence?"
@@ -125,6 +128,7 @@ Start the task:
 ```bash
 curl -X POST "http://localhost:8000/api/v1/edison/run/async" \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer your-edison-api-key-here" \
   -d '{
     "name": "PRECEDENT",
     "query": "Has anyone tested therapeutic exerkines in humans or NHPs?"
@@ -133,7 +137,8 @@ curl -X POST "http://localhost:8000/api/v1/edison/run/async" \
 
 Check status:
 ```bash
-curl -X GET "http://localhost:8000/api/v1/edison/task/{task_id}/status"
+curl -X GET "http://localhost:8000/api/v1/edison/task/{task_id}/status" \
+  -H "Authorization: Bearer your-edison-api-key-here"
 ```
 
 ### 3. Multiple Tasks
@@ -141,6 +146,7 @@ curl -X GET "http://localhost:8000/api/v1/edison/task/{task_id}/status"
 ```bash
 curl -X POST "http://localhost:8000/api/v1/edison/run/sync/multiple" \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer your-edison-api-key-here" \
   -d '{
     "tasks": [
       {
@@ -161,6 +167,7 @@ Synchronous (wait for completion):
 ```bash
 curl -X POST "http://localhost:8000/api/v1/edison/run/continuation/sync?continued_job_id=previous-task-id" \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer your-edison-api-key-here" \
   -d '{
     "name": "LITERATURE",
     "query": "From the previous answer, what are the side effects of those treatments?"
@@ -171,6 +178,7 @@ Asynchronous (get task ID):
 ```bash
 curl -X POST "http://localhost:8000/api/v1/edison/run/continuation/async?continued_job_id=previous-task-id" \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer your-edison-api-key-here" \
   -d '{
     "name": "LITERATURE",
     "query": "From the previous answer, what are the side effects of those treatments?"
