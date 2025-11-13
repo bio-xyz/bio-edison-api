@@ -10,15 +10,22 @@ A FastAPI server that provides REST endpoints for interacting with the Edison Sc
 - **Task Continuation**: Follow up on previous tasks with additional queries
 - **Comprehensive API Documentation**: Auto-generated OpenAPI docs
 - **Health Checks**: Monitor service status
+- **Docker Support**: Easy containerized deployment
 
 ## Quick Start
 
 ### Prerequisites
 
-- Python 3.11+ (required for edison-client)
+Choose one of the following deployment methods:
+- **Option 1**: Python 3.11+ (for local installation)
+- **Option 2**: Docker and Docker Compose (for containerized deployment)
+
+You will also need:
 - Edison Scientific API key
 
-### Installation
+### Installation (Local)
+
+For local Python installation:
 
 1. **Clone the repository:**
    ```bash
@@ -46,16 +53,66 @@ A FastAPI server that provides REST endpoints for interacting with the Edison Sc
     pip install edison-client==0.7.6
    ```
 
-4. **Configure environment:**
-   ```bash
-   cp .env.example .env
-   # Edit .env and add your Edison API key
-   ```
-
-5. **Run the server:**
+4. **Run the server:**
    ```bash
    uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
    ```
+
+### Docker Deployment
+
+Docker provides a containerized way to run the API without setting up Python locally.
+
+#### Prerequisites for Docker
+- Docker installed on your system
+- Docker Compose (optional, for easier deployment)
+
+#### Using Docker Compose (Recommended)
+
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/bio-xyz/bio-edison-api
+   cd bio-edison-api
+   ```
+
+2. **Build and start the container:**
+   ```bash
+   docker-compose up -d
+   ```
+
+3. **View logs:**
+   ```bash
+   docker-compose logs -f
+   ```
+
+4. **Stop the container:**
+   ```bash
+   docker-compose down
+   ```
+
+#### Using Docker directly
+
+1. **Build the image:**
+   ```bash
+   docker build -t bio-edison-api .
+   ```
+
+2. **Run the container:**
+   ```bash
+   docker run -d -p 8000:8000 --name bio-edison-api bio-edison-api
+   ```
+
+3. **View logs:**
+   ```bash
+   docker logs -f bio-edison-api
+   ```
+
+4. **Stop and remove the container:**
+   ```bash
+   docker stop bio-edison-api
+   docker rm bio-edison-api
+   ```
+
+The API will be available at `http://localhost:8000`
 
 ## Configuration
 
