@@ -250,5 +250,3 @@ curl -X POST "http://localhost:8000/api/v1/edison/run/continuation/async?continu
 | `ANALYSIS` | Data Analysis - Analyze biological datasets and answer research questions |
 | `PRECEDENT` | Precedent Search - Find if specific research has been done before |
 | `MOLECULES` | Chemistry Tasks - Molecular design and synthesis planning |
-| `DUMMY` | Dummy Task - For testing purposes |
-
