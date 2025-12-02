@@ -5,8 +5,8 @@ from typing import Any, Dict, List, Optional, Union
 
 from dotenv import load_dotenv
 from edison_client import EdisonClient, JobNames
-from fastapi import APIRouter, HTTPException, Header, Depends
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, UploadFile
+from pydantic import BaseModel, Field
 
 load_dotenv()
 
@@ -29,6 +29,9 @@ class TaskRequest(BaseModel):
     name: JobType
     query: str
     runtime_config: Optional[Dict[str, Any]] = None
+    data_storage_entry_ids: Optional[List[str]] = Field(
+        None, description="List of data storage entry IDs to use with this task"
+    )
 
 
 class MultipleTasksRequest(BaseModel):
@@ -47,6 +50,20 @@ class TaskStatusResponse(BaseModel):
     status: str
     answer: Optional[str] = None
     error: Optional[str] = None
+
+
+class FileUploadResponse(BaseModel):
+    entry_id: str
+    name: str
+    description: Optional[str] = None
+    status: str
+
+
+class StoredFileInfo(BaseModel):
+    entry_id: str
+    name: str
+    description: Optional[str] = None
+    created_at: Optional[str] = None
 
 
 # Dependency to extract API key from Authorization header
@@ -128,6 +145,18 @@ async def run_task_sync(task: TaskRequest, api_key: str = Depends(get_api_key)):
         if task.runtime_config:
             task_data["runtime_config"] = task.runtime_config
 
+        # Add data storage entry IDs to runtime_config.environment_config.data_storage_uris
+        if task.data_storage_entry_ids:
+            if "runtime_config" not in task_data:
+                task_data["runtime_config"] = {}
+            if "environment_config" not in task_data["runtime_config"]:
+                task_data["runtime_config"]["environment_config"] = {}
+
+            # Format as data_entry:{id}
+            task_data["runtime_config"]["environment_config"]["data_storage_uris"] = [
+                f"data_entry:{entry_id}" for entry_id in task.data_storage_entry_ids
+            ]
+
         # Run task until completion
         task_response = await client.arun_tasks_until_done(task_data)
 
@@ -138,7 +167,9 @@ async def run_task_sync(task: TaskRequest, api_key: str = Depends(get_api_key)):
 
 
 @router.post("/run/sync/multiple", response_model=List[TaskResponse])
-async def run_multiple_tasks_sync(request: MultipleTasksRequest, api_key: str = Depends(get_api_key)):
+async def run_multiple_tasks_sync(
+    request: MultipleTasksRequest, api_key: str = Depends(get_api_key)
+):
     """Run multiple Edison tasks synchronously"""
     try:
         client = get_edison_client(api_key)
@@ -151,6 +182,21 @@ async def run_multiple_tasks_sync(request: MultipleTasksRequest, api_key: str = 
             }
             if task.runtime_config:
                 task_data["runtime_config"] = task.runtime_config
+
+            # Add data storage entry IDs to runtime_config.environment_config.data_storage_uris
+            if task.data_storage_entry_ids:
+                if "runtime_config" not in task_data:
+                    task_data["runtime_config"] = {}
+                if "environment_config" not in task_data["runtime_config"]:
+                    task_data["runtime_config"]["environment_config"] = {}
+
+                # Format as data_entry:{id}
+                task_data["runtime_config"]["environment_config"][
+                    "data_storage_uris"
+                ] = [
+                    f"data_entry:{entry_id}" for entry_id in task.data_storage_entry_ids
+                ]
+
             tasks_data.append(task_data)
 
         # Run all tasks until completion
@@ -180,6 +226,18 @@ async def run_task_async(task: TaskRequest, api_key: str = Depends(get_api_key))
         if task.runtime_config:
             task_data["runtime_config"] = task.runtime_config
 
+        # Add data storage entry IDs to runtime_config.environment_config.data_storage_uris
+        if task.data_storage_entry_ids:
+            if "runtime_config" not in task_data:
+                task_data["runtime_config"] = {}
+            if "environment_config" not in task_data["runtime_config"]:
+                task_data["runtime_config"]["environment_config"] = {}
+
+            # Format as data_entry:{id}
+            task_data["runtime_config"]["environment_config"]["data_storage_uris"] = [
+                f"data_entry:{entry_id}" for entry_id in task.data_storage_entry_ids
+            ]
+
         # Create task and return task ID
         task_id = await client.acreate_task(task_data)
 
@@ -190,7 +248,9 @@ async def run_task_async(task: TaskRequest, api_key: str = Depends(get_api_key))
 
 
 @router.post("/run/async/multiple", response_model=List[TaskResponse])
-async def run_multiple_tasks_async(request: MultipleTasksRequest, api_key: str = Depends(get_api_key)):
+async def run_multiple_tasks_async(
+    request: MultipleTasksRequest, api_key: str = Depends(get_api_key)
+):
     """Start multiple Edison tasks asynchronously"""
     try:
         client = get_edison_client(api_key)
@@ -203,6 +263,20 @@ async def run_multiple_tasks_async(request: MultipleTasksRequest, api_key: str =
             }
             if task.runtime_config:
                 task_data["runtime_config"] = task.runtime_config
+
+            # Add data storage entry IDs to runtime_config.environment_config.data_storage_uris
+            if task.data_storage_entry_ids:
+                if "runtime_config" not in task_data:
+                    task_data["runtime_config"] = {}
+                if "environment_config" not in task_data["runtime_config"]:
+                    task_data["runtime_config"]["environment_config"] = {}
+
+                # Format as data_entry:{id}
+                task_data["runtime_config"]["environment_config"][
+                    "data_storage_uris"
+                ] = [
+                    f"data_entry:{entry_id}" for entry_id in task.data_storage_entry_ids
+                ]
 
             task_id = await client.acreate_task(task_data)
             results.append(TaskResponse(task_id=task_id, status="started"))
@@ -235,7 +309,9 @@ async def get_task_status(task_id: str, api_key: str = Depends(get_api_key)):
 
 
 @router.post("/run/continuation/sync", response_model=TaskResponse)
-async def run_continuation_task_sync(task: TaskRequest, continued_job_id: str, api_key: str = Depends(get_api_key)):
+async def run_continuation_task_sync(
+    task: TaskRequest, continued_job_id: str, api_key: str = Depends(get_api_key)
+):
     """Run a continuation task synchronously based on a previous task"""
     try:
         client = get_edison_client(api_key)
@@ -261,7 +337,9 @@ async def run_continuation_task_sync(task: TaskRequest, continued_job_id: str, a
 
 
 @router.post("/run/continuation/async", response_model=TaskResponse)
-async def run_continuation_task_async(task: TaskRequest, continued_job_id: str, api_key: str = Depends(get_api_key)):
+async def run_continuation_task_async(
+    task: TaskRequest, continued_job_id: str, api_key: str = Depends(get_api_key)
+):
     """Start a continuation task asynchronously based on a previous task"""
     try:
         client = get_edison_client(api_key)
@@ -314,3 +392,172 @@ async def get_available_jobs():
             },
         ]
     }
+
+
+@router.post("/storage/upload/file", response_model=FileUploadResponse)
+async def upload_file(
+    file: UploadFile = File(...),
+    name: str = Form(...),
+    description: Optional[str] = Form(None),
+    api_key: str = Depends(get_api_key),
+):
+    """Upload a single file to Edison data storage service"""
+    import os
+    import tempfile
+
+    try:
+        client = get_edison_client(api_key)
+
+        # Create a temporary file to store the uploaded content
+        with tempfile.NamedTemporaryFile(
+            delete=False, suffix=os.path.splitext(file.filename)[1]
+        ) as tmp_file:
+            # Read and write the file content
+            content = await file.read()
+            tmp_file.write(content)
+            tmp_file_path = tmp_file.name
+
+        try:
+            # Upload to Edison data storage
+            upload_response = await client.astore_file_content(
+                name=name,
+                file_path=tmp_file_path,
+                description=description or f"Uploaded file: {file.filename}",
+            )
+
+            # Extract the ID from the response
+            entry_id = None
+            if hasattr(upload_response, 'data_storage') and hasattr(
+                upload_response.data_storage, 'id'
+            ):
+                entry_id = str(upload_response.data_storage.id)
+            elif hasattr(upload_response, 'id'):
+                entry_id = str(upload_response.id)
+            else:
+                entry_id = str(upload_response)
+
+            return FileUploadResponse(
+                entry_id=entry_id, name=name, description=description, status="uploaded"
+            )
+        finally:
+            # Clean up temporary file
+            os.unlink(tmp_file_path)
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"File upload failed: {str(e)}")
+
+
+@router.post("/storage/upload/directory", response_model=FileUploadResponse)
+async def upload_directory(
+    name: str = Form(...),
+    directory_path: str = Form(...),
+    description: Optional[str] = Form(None),
+    api_key: str = Depends(get_api_key),
+):
+    """Upload a directory to Edison data storage service
+
+    Note: This endpoint requires that the directory already exists on the server.
+    For uploading multiple files from a client, use the /storage/upload/files endpoint instead.
+    """
+    import os
+
+    try:
+        client = get_edison_client(api_key)
+
+        # Verify the directory exists
+        if not os.path.exists(directory_path):
+            raise HTTPException(
+                status_code=404, detail=f"Directory not found: {directory_path}"
+            )
+
+        if not os.path.isdir(directory_path):
+            raise HTTPException(
+                status_code=400, detail=f"Path is not a directory: {directory_path}"
+            )
+
+        # Upload directory to Edison data storage
+        upload_response = await client.astore_file_content(
+            name=name,
+            file_path=directory_path,
+            description=description
+            or f"Uploaded directory: {os.path.basename(directory_path)}",
+            as_collection=True,
+        )
+
+        # Extract the ID from the response
+        entry_id = None
+        if hasattr(upload_response, 'data_storage') and hasattr(
+            upload_response.data_storage, 'id'
+        ):
+            entry_id = str(upload_response.data_storage.id)
+        elif hasattr(upload_response, 'id'):
+            entry_id = str(upload_response.id)
+        else:
+            entry_id = str(upload_response)
+
+        return FileUploadResponse(
+            entry_id=entry_id, name=name, description=description, status="uploaded"
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Directory upload failed: {str(e)}"
+        )
+
+
+@router.post("/storage/upload/files", response_model=FileUploadResponse)
+async def upload_multiple_files(
+    files: List[UploadFile] = File(...),
+    name: str = Form(...),
+    description: Optional[str] = Form(None),
+    api_key: str = Depends(get_api_key),
+):
+    """Upload multiple files as a collection to Edison data storage service"""
+    import os
+    import shutil
+    import tempfile
+
+    try:
+        client = get_edison_client(api_key)
+
+        # Create a temporary directory to store all files
+        temp_dir = tempfile.mkdtemp()
+
+        try:
+            # Save all uploaded files to the temporary directory
+            for file in files:
+                file_path = os.path.join(temp_dir, file.filename)
+                with open(file_path, "wb") as f:
+                    content = await file.read()
+                    f.write(content)
+
+            # Upload the directory to Edison data storage
+            upload_response = await client.astore_file_content(
+                name=name,
+                file_path=temp_dir,
+                description=description or f"Uploaded {len(files)} files",
+                as_collection=True,
+            )
+
+            # Extract the ID from the response
+            entry_id = None
+            if hasattr(upload_response, 'data_storage') and hasattr(
+                upload_response.data_storage, 'id'
+            ):
+                entry_id = str(upload_response.data_storage.id)
+            elif hasattr(upload_response, 'id'):
+                entry_id = str(upload_response.id)
+            else:
+                entry_id = str(upload_response)
+
+            return FileUploadResponse(
+                entry_id=entry_id, name=name, description=description, status="uploaded"
+            )
+        finally:
+            # Clean up temporary directory
+            shutil.rmtree(temp_dir, ignore_errors=True)
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Files upload failed: {str(e)}")
