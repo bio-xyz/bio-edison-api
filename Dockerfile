@@ -24,7 +24,7 @@ RUN pip install --no-cache-dir edison-client==0.7.6
 COPY . .
 
 # Expose port
-EXPOSE 5000
+EXPOSE 5002
 
 # Run the application
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "5000"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "5002"]
